@@ -1,5 +1,4 @@
-from pyparsing import Char
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Date, CHAR
+from sqlalchemy import Boolean, Column, Integer, String, Date, CHAR
 # from sqlalchemy.orm import relationship
 
 from database import Base

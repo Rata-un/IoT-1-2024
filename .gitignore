@@ -1,0 +1,4 @@
+.env
+.env.example
+sql.db
+__pycache__
