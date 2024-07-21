@@ -42,12 +42,96 @@ async def get_book(book_id: int, db: Session = Depends(get_db)):
 @router_v1.post('/books')
 async def create_book(book: dict, response: Response, db: Session = Depends(get_db)):
     # TODO: Add validation
-    newbook = models.Book(title=book['title'], author=book['author'], year=book['year'], is_published=book['is_published'])
+    newbook = models.Book(title=book['title'], author=book['author'], year=book['year'], is_published=book['is_published'], detail=book['detail'], synopsis=book['synopsis'], category=book['category'],image=book['image'])
     db.add(newbook)
     db.commit()
     db.refresh(newbook)
     response.status_code = 201
     return newbook
+
+@router_v1.patch('/books/{book_id}')
+async def update_book(book_id: str, book: dict, response: Response, db: Session = Depends(get_db)):
+    bk = db.query(models.Book).filter(models.Book.id == book_id).first()
+    if (bk is None):
+        response.status_code = 400
+        return {
+            "message" : "Book's ID not found."
+        }
+    keys = ["id", "title", "author", "year", "is_published", "detail", "synopsis", "category", "image"]
+    for key in keys:
+        if key in book:
+            setattr(bk, key, book[key])
+    db.commit()
+    response.status_code = 201
+    return {
+        "message" : "Book's info edited successfully"
+    }
+
+@router_v1.delete('/books/{book_id}')
+async def delete_book(book_id: str, response: Response, db: Session = Depends(get_db)):
+    bk = db.query(models.Book).filter(models.Book.id == book_id).first()
+    if (bk is not None):
+        db.delete(bk)
+        db.commit()
+        response.status_code = 201
+        return {
+            "message" : "delete info successfully"
+        }
+    response.status_code = 400
+    return {
+        "message" : "Book's ID not found."
+    }
+
+@router_v1.get('/menu')
+async def get_menu(db: Session = Depends(get_db)):
+    return db.query(models.Beverages).all()
+
+@router_v1.get('/menu/{menu_id}')
+async def get_menu(menu_id: int, db: Session = Depends(get_db)):
+    return db.query(models.Beverages).filter(models.Beverages.id == menu_id).first()
+
+@router_v1.post('/menu')
+async def create_menu(menu: dict, response: Response, db: Session = Depends(get_db)):
+    # TODO: Add validation
+    newMenu = models.Beverages(name=menu['name'], price=menu['price'], menuImage=menu['menuImage'])
+    db.add(newMenu)
+    db.commit()
+    db.refresh(newMenu)
+    response.status_code = 201
+    return newMenu
+
+@router_v1.patch('/menu/{menu_id}')
+async def update_menu(menu_id: str, menu: dict, response: Response, db: Session = Depends(get_db)):
+    bk = db.query(models.Beverages).filter(models.Beverages.id == menu_id).first()
+    if (bk is None):
+        response.status_code = 400
+        return {
+            "message" : "Menu's ID not found."
+        }
+    keys = ["id", "name", "price", "menuImage"]
+    for key in keys:
+        if key in menu:
+            setattr(bk, key, menu[key])
+    db.commit()
+    response.status_code = 201
+    return {
+        "message" : "Menu's info edited successfully"
+    }
+
+@router_v1.delete('/menu/{id}')
+async def delete_book(id: str, response: Response, db: Session = Depends(get_db)):
+    bk = db.query(models.Beverages).filter(models.Beverages.id == id).first()
+    if (bk is not None):
+        db.delete(bk)
+        db.commit()
+        response.status_code = 201
+        return {
+            "message" : "delete info successfully"
+        }
+    response.status_code = 400
+    return {
+        "message" : "Menu's ID not found."
+    }
 
 
 @router_v1.get('/students')
