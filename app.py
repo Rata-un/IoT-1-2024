@@ -8,6 +8,15 @@ from sqlalchemy.orm import Session
 # Import models
 from database import SessionLocal, engine
 import models
+from pydantic import BaseModel
+from typing import List
+import logging
+
+from sqlalchemy.orm import joinedload
+
+# Configure logging
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -30,6 +39,15 @@ app.add_middleware(
 )
 
 # https://fastapi.tiangolo.com/tutorial/sql-databases/#crud-utils
+
+class OrderItemCreate(BaseModel):
+    menuId: int
+    quantity: int
+    price: float
+
+class OrderCreate(BaseModel):
+    description: str
+    orderItems: List[OrderItemCreate]
 
 @router_v1.get('/books')
 async def get_books(db: Session = Depends(get_db)):
@@ -81,6 +99,9 @@ async def delete_book(book_id: str, response: Response, db: Session = Depends(ge
     return {
         "message" : "Book's ID not found."
     }
+
+
+
 
 @router_v1.get('/menu')
 async def get_menu(db: Session = Depends(get_db)):
@@ -185,32 +206,115 @@ async def update_student(student_id: str, student: dict, response: Response,db: 
     stu.gender = student["gender"] if "gender" in student else stu.gender
 
     db.commit()
-    
+
     response.status_code = 201
     return stu
 
-# @router_v1.put('/students/{stu_id}')
-# async def update_student(stu_id: int, response: Response,db: Session = Depends(get_db)):
-#     response.status_code = 404
+@router_v1.get('/orders')
+async def get_orders(db: Session = Depends(get_db)):
+    # ดึงข้อมูลคำสั่งซื้อพร้อมกับโหลดข้อมูล order_items และ menu
+    orders = db.query(models.Order).options(
+        joinedload(models.Order.order_items).joinedload(models.OrderItem.menu)
+    ).all()
 
-# @router_v1.post('/students')
-# async def create_student(stu: dict, response: Response, db: Session = Depends(get_db)):
-#     # TODO: Add validation
-#     newstu = models.Book(fname=stu['fname'], lname=stu['lname'], stuid=stu['id'], studob=stu['dob'], stusex=stu['sex'])
-#     db.add(newstu)
-#     db.commit()
-#     db.refresh(newstu)
-#     response.status_code = 201
-#     return newstu
+    result = []
+    for order in orders:
+        result.append({
+            "id": order.id,
+            "date": order.date,
+            "description": order.description,
+            "total_price": order.total_price,
+            "order_items": [
+                {
+                    "id": item.id,
+                    "order_id": item.order_id,
+                    "menu_id": item.menu_id,
+                    "quantity": item.quantity,
+                    "price": item.price,
+                    "total_price": item.total_price,
+                    "menu": {
+                        "id": item.menu.id,
+                        "name": item.menu.name,
+                        "price": item.menu.price,
+                    }
+                } for item in order.order_items
+            ]
+        })
+
+    return result
 
 
-# @router_v1.patch('/books/{book_id}')
-# async def update_book(book_id: int, book: dict, db: Session = Depends(get_db)):
-#     pass
 
-# @router_v1.delete('/books/{book_id}')
-# async def delete_book(book_id: int, db: Session = Depends(get_db)):
-#     pass
+@router_v1.get('/orders/{order_id}')
+async def get_order(order_id: int, db: Session = Depends(get_db)):
+    order = db.query(models.Order).options(
+        joinedload(models.Order.order_items).joinedload(models.OrderItem.menu)
+    ).filter(models.Order.id == order_id).first()
+
+    if order is None:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    result = {
+        "id": order.id,
+        "date": order.date,
+        "description": order.description,
+        "total_price": order.total_price,
+        "order_items": [
+            {
+                "id": item.id,
+                "order_id": item.order_id,
+                "menu_id": item.menu_id,
+                "quantity": item.quantity,
+                "price": item.price,
+                "total_price": item.total_price,
+                "menu": {
+                    "id": item.menu.id,
+                    "name": item.menu.name,
+                    "price": item.menu.price
+                }
+            } for item in order.order_items
+        ]
+    }
+    return result
+
+
+@router_v1.post('/orders')
+async def create_order(order: OrderCreate, response: Response, db: Session = Depends(get_db)):
+    total_price = sum(item.price * item.quantity for item in order.orderItems)
+    
+    new_order = models.Order(
+        description=order.description,
+        total_price=total_price
+    )
+
+    db.add(new_order)
+    db.commit()
+    db.refresh(new_order)
+
+    for item in order.orderItems:
+        order_item = models.OrderItem(
+            order_id=new_order.id,
+            menu_id=item.menuId,
+            quantity=item.quantity,
+            price=item.price,
+            total_price=item.price * item.quantity
+        )
+        db.add(order_item)
+        print(f"Added OrderItem: {order_item}")  # Debugging line
+
+    db.commit()
+    response.status_code = 201
+    return {"id": new_order.id}
+
+@router_v1.delete('/orders/{order_id}')
+async def delete_order(order_id: int, db: Session = Depends(get_db)):
+    order = db.query(models.Order).filter(models.Order.id == order_id).first()
+    if order is None:
+        raise HTTPException(status_code=404, detail="Order not found")
+    db.query(models.OrderItem).filter(models.OrderItem.order_id == order_id).delete()
+    db.delete(order)
+    db.commit()
+    return {"message": "Order deleted successfully"}
 
 app.include_router(router_v1)
 

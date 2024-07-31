@@ -1,11 +1,13 @@
-from sqlalchemy import Boolean, ForeignKey ,Column, Integer, String, Date, CHAR, DateTime
-# from sqlalchemy.orm import relationship
+from sqlalchemy import Boolean, ForeignKey ,Column, Integer, String, Date, CHAR, DateTime, Float
+from sqlalchemy.orm import relationship, Mapped
 from database import Base
+from typing import List
+import pytz
+from database import Base
+import datetime
 
-# class BookPicture(Base, Image):
-#     __tablename__= 'bookPic'
-#     book_id = Column(Integer, ForeignKey('books.id'), primary_key=True)
-#     book = relationship('Book')
+
+bkk_timezone = pytz.timezone('Asia/Bangkok')
 
 class Book(Base):
     __tablename__ = 'books'
@@ -34,16 +36,27 @@ class Beverages(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, index=True)
-    price = Column(String, index=True)
+    price = Column(Float, index=True)
     menuImage = Column(String, index=True)
     
-# class Orders(Base):
-#     __tablename__ = 'orders'
+class Order(Base):
+    __tablename__ = 'orders'
 
-#     id = Column(Integer, primary_key=True, index=True)
-#     menu = Column(String, index=True)
-#     number = Column(String, index=True)
-#     date = Column(DateTime, index=True)
-#     description = Column(String, index=True)
+    id = Column(Integer, primary_key=True, index=True)
+    date = Column(DateTime, default=datetime.datetime.now(tz=bkk_timezone))
+    description = Column(String, index=True)
+    total_price = Column(Float, nullable=False)
+    order_items:Mapped[List["OrderItem"]]  = relationship(back_populates="order",lazy='joined', cascade="all, delete")
 
+class OrderItem(Base):
+    __tablename__ = 'order_items'
 
+    id = Column(Integer, primary_key=True, index=True)
+    order_id = Column(Integer,ForeignKey("orders.id"), nullable=False)
+    menu_id = Column(Integer, ForeignKey("berverages.id"), nullable=False)
+    quantity = Column(Integer, index=True)
+    price = Column(Float, nullable=False)
+    total_price = Column(Float, nullable=False)
+    order: Mapped["Order"] = relationship("Order", back_populates="order_items" , cascade="all, delete")
+    menu : Mapped["Beverages"]= relationship("Beverages", backref="order_items",lazy='joined')
+    
