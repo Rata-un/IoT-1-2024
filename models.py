@@ -2,12 +2,13 @@ from sqlalchemy import Boolean, ForeignKey ,Column, Integer, String, Date, CHAR,
 from sqlalchemy.orm import relationship, Mapped
 from database import Base
 from typing import List
-import pytz
 from database import Base
-import datetime
+from datetime import datetime, timezone, timedelta
 
+bkk_timezone = timezone(timedelta(hours=7))
 
-bkk_timezone = pytz.timezone('Asia/Bangkok')
+def current_time():
+    return datetime.now(bkk_timezone)
 
 class Book(Base):
     __tablename__ = 'books'
@@ -43,7 +44,7 @@ class Order(Base):
     __tablename__ = 'orders'
 
     id = Column(Integer, primary_key=True, index=True)
-    date = Column(DateTime, default=datetime.datetime.now(tz=bkk_timezone))
+    date = Column(DateTime, default=current_time)
     description = Column(String, index=True)
     total_price = Column(Float, nullable=False)
     order_items:Mapped[List["OrderItem"]]  = relationship(back_populates="order",lazy='joined', cascade="all, delete")

@@ -5,18 +5,11 @@ from fastapi import FastAPI, Depends, Response, APIRouter, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
-# Import models
 from database import SessionLocal, engine
 import models
 from pydantic import BaseModel
 from typing import List
-import logging
-
 from sqlalchemy.orm import joinedload
-
-# Configure logging
-logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger(__name__)
 
 models.Base.metadata.create_all(bind=engine)
 
